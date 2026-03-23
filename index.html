@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fake Product Detection</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.8.2/dist/web3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            color: black;
+            padding: 25px;
+            border-radius: 15px;
+            width: 400px;
+            margin: auto;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        h2 {
+            margin-top: 20px;
+        }
+
+        input {
+            width: 90%;
+            padding: 10px;
+            margin: 8px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 8px;
+            background: #667eea;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #5a67d8;
+        }
+
+        #qrcode {
+            margin-top: 15px;
+        }
+
+        .result-box {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .wallet {
+            font-size: 12px;
+            margin-top: 5px;
+            word-break: break-all;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>🔗 Connect Wallet</h2>
+<button onclick="connectWallet()">Connect MetaMask</button>
+<p id="account" class="wallet"></p>
+
+<hr>
+
+<h2>📦 Add Product</h2>
+<input id="pid" placeholder="Product ID"><br>
+<input id="pname" placeholder="Product Name"><br>
+<input id="pman" placeholder="Manufacturer"><br>
+<button onclick="addProduct()">Add Product</button>
+
+<div id="qrcode"></div>
+
+<hr>
+
+<h2>🔍 Verify Product</h2>
+<input id="vid" placeholder="Enter Product ID"><br>
+<button onclick="verifyProduct()">Verify</button>
+
+<div id="result"></div>
+
+</div>
+
+<script>
+
+let web3;
+let contract;
+let account;
+
+// 🔴 PUT YOUR LATEST CONTRACT ADDRESS
+const contractAddress = "0xB151c48C4695b97513b7A176A38D266a16C98d98";
+
+// ABI (same)
+const abi = [
+  {
+    "inputs": [
+      {"internalType":"string","name":"_id","type":"string"},
+      {"internalType":"string","name":"_name","type":"string"},
+      {"internalType":"string","name":"_manufacturer","type":"string"}
+    ],
+    "name":"addProduct",
+    "outputs":[],
+    "stateMutability":"nonpayable",
+    "type":"function"
+  },
+  {
+    "inputs":[{"internalType":"string","name":"_id","type":"string"}],
+    "name":"verifyProduct",
+    "outputs":[
+      {"internalType":"string","name":"","type":"string"},
+      {"internalType":"string","name":"","type":"string"},
+      {"internalType":"bool","name":"","type":"bool"}
+    ],
+    "stateMutability":"view",
+    "type":"function"
+  }
+];
+
+async function connectWallet() {
+    if (window.ethereum) {
+        web3 = new Web3(window.ethereum);
+        await window.ethereum.request({ method: "eth_requestAccounts" });
+
+        const accounts = await web3.eth.getAccounts();
+        account = accounts[0];
+
+        document.getElementById("account").innerText = "Connected: " + account;
+
+        contract = new web3.eth.Contract(abi, contractAddress);
+    }
+}
+
+async function addProduct() {
+    const id = document.getElementById("pid").value;
+    const name = document.getElementById("pname").value;
+    const man = document.getElementById("pman").value;
+
+    await contract.methods.addProduct(id, name, man)
+        .send({ from: account });
+
+    // QR Code
+    document.getElementById("qrcode").innerHTML = "";
+    new QRCode(document.getElementById("qrcode"), {
+        text: id,
+        width: 150,
+        height: 150
+    });
+
+    alert("Product Added + QR Generated 🎉");
+}
+
+async function verifyProduct() {
+    const id = document.getElementById("vid").value;
+
+    const result = await contract.methods.verifyProduct(id).call();
+
+    if (result[2]) {
+        document.getElementById("result").innerHTML =
+            `<div class="result-box success">
+            ✅ Genuine Product<br>
+            Name: ${result[0]}<br>
+            Manufacturer: ${result[1]}
+            </div>`;
+    } else {
+        document.getElementById("result").innerHTML =
+            `<div class="result-box error">
+            ❌ Fake Product
+            </div>`;
+    }
+}
+
+</script>
+
+</body>
+</html>
